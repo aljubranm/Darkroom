@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Darkroom</title>
+<style>
+  :root {
+    --r:#dd0000;--rd:#aa0000;--rf:#993300;--rg:#ff3333;
+    --bg:#000000;--pn:#0d0000;--hi:#1a0000;--th:#000000;
+    --ib:#cc0000;--cb:#660000;--dv:#440000;
+    --tx:background 0.2s,color 0.2s,border-color 0.2s;
+  }
+  body.light {
+    --r:#111;--rd:#333;--rf:#555;--rg:#000;
+    --bg:#fff;--pn:#fff;--hi:#f0f0f0;--th:#fff;
+    --ib:#333;--cb:#aaa;--dv:#ccc;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{background:var(--bg);color:var(--r);font-family:'Courier New',monospace;
+    height:100svh;display:flex;flex-direction:column;overflow:hidden;
+    max-width:480px;margin:0 auto;transition:var(--tx);}
+
+/* TOP BAR */
+.topbar{display:flex;align-items:center;justify-content:space-between;
+padding:6px 10px;border-bottom:2px solid var(–dv);flex-shrink:0;}
+.logo{font-size:clamp(11px,3vw,14px);letter-spacing:.25em;color:var(–rd);text-transform:uppercase;}
+.mode-btn{background:none;border:2px solid var(–cb);color:var(–rd);font-family:inherit;
+font-size:clamp(11px,3vw,14px);letter-spacing:.1em;padding:4px 10px;border-radius:4px;
+cursor:pointer;text-transform:uppercase;transition:var(–tx);display:flex;align-items:center;gap:4px;}
+
+/* TABS */
+.tabs{display:flex;flex-shrink:0;border-bottom:2px solid var(–dv);}
+.tab{flex:1;padding:8px 4px;text-align:center;font-size:clamp(12px,3.2vw,15px);
+letter-spacing:.25em;text-transform:uppercase;color:var(–rf);
+background:none;border:none;border-bottom:3px solid transparent;
+margin-bottom:-2px;cursor:pointer;font-family:inherit;transition:var(–tx);}
+.tab.active{color:var(–rg);border-bottom-color:var(–r);}
+
+/* PANELS */
+.panel{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.panel.active{display:flex;}
+
+/* – PRINT PANEL – */
+/* Enlarger selector */
+.head-bar{display:flex;gap:5px;padding:6px 10px;flex-shrink:0;overflow-x:auto;}
+.head-btn{background:none;border:2px solid var(–cb);color:var(–rf);
+font-family:inherit;font-size:clamp(9px,2.5vw,12px);letter-spacing:.1em;
+padding:4px 8px;border-radius:4px;cursor:pointer;white-space:nowrap;
+text-transform:uppercase;transition:var(–tx);flex-shrink:0;}
+.head-btn.active{border-color:var(–r);color:var(–rg);}
+
+/* Base time input */
+.input-row{display:flex;align-items:center;gap:8px;padding:4px 10px;flex-shrink:0;}
+#base-input{flex:1;min-width:0;background:var(–pn);border:2px solid var(–ib);
+border-radius:6px;color:var(–rg);font-family:‘Courier New’,monospace;
+font-size:clamp(30px,9vw,48px);font-weight:bold;text-align:center;
+padding:4px 8px;outline:none;caret-color:var(–rg);
+-moz-appearance:textfield;width:100%;transition:var(–tx);}
+#base-input::-webkit-outer-spin-button,
+#base-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+#base-input::placeholder{color:var(–rf);}
+#base-input:focus{border-color:var(–rg);}
+.input-unit{font-size:clamp(16px,4.5vw,24px);color:var(–rd);flex-shrink:0;}
+
+.divider{height:2px;background:var(–dv);margin:0 10px;flex-shrink:0;}
+.sec-label{font-size:clamp(9px,2.4vw,11px);letter-spacing:.2em;color:var(–rf);
+text-transform:uppercase;padding:3px 10px 2px;flex-shrink:0;}
+
+/* F-stop grid */
+.fstop-wrap{padding:0 10px 4px;flex-shrink:0;}
+.fstop-row{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;margin-bottom:3px;}
+.fs-card{background:var(–pn);border:2px solid var(–cb);border-radius:4px;
+padding:4px 1px;text-align:center;display:flex;flex-direction:column;
+align-items:center;justify-content:center;gap:1px;transition:var(–tx);min-width:0;}
+.fs-lbl{font-size:clamp(8px,2.2vw,11px);color:var(–rf);line-height:1;}
+.fs-val{font-size:clamp(12px,3.4vw,17px);font-weight:bold;color:var(–rd);line-height:1.1;}
+.fs-val.lit{color:var(–r);}
+
+/* Filter table */
+.table-wrap{flex:1;overflow-y:auto;padding:0 10px 6px;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;}
+th{font-size:clamp(10px,2.8vw,13px);letter-spacing:.06em;color:var(–rf);
+text-transform:uppercase;padding:5px 3px;border-bottom:2px solid var(–dv);
+font-weight:normal;text-align:center;
+position:sticky;top:0;background:var(–th);transition:var(–tx);}
+td{padding:clamp(5px,1.3vw,8px) 3px;text-align:center;
+border-bottom:1px solid var(–cb);color:var(–rd);
+font-size:clamp(13px,3.5vw,17px);transition:var(–tx);}
+tr.ag td{background:var(–hi);}
+tr.ag td.gc{color:var(–rg);font-weight:bold;}
+tr.ag td.tc{color:var(–rg);font-weight:bold;}
+td.ly{color:#996600;}td.lm{color:#880055;}
+tr.ag td.ly{color:#cc8800;}tr.ag td.lm{color:#cc0066;}
+body.light td.ly{color:#886600;}body.light td.lm{color:#880044;}
+.note{font-size:clamp(8px,2.2vw,10px);color:var(–rf);padding:4px 0 6px;line-height:1.6;}
+
+/* – DEV PANEL – */
+.timer-panel{flex:1;display:flex;flex-direction:column;padding:8px 10px;gap:8px;overflow:hidden;}
+.timers-row{display:flex;flex-direction:column;gap:8px;flex:1;overflow-y:auto;}
+.t-col{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto auto;
+column-gap:8px;row-gap:2px;align-items:center;
+background:var(–pn);border:2px solid var(–cb);border-radius:6px;
+padding:10px 10px;flex-shrink:0;transition:var(–tx);cursor:pointer;}
+.t-col.running{border-color:var(–r);background:var(–hi);}
+.t-col.done{border-color:var(–rg);}
+.t-label{font-size:clamp(11px,3vw,14px);letter-spacing:.2em;text-transform:uppercase;
+color:var(–rf);grid-column:1;grid-row:1;align-self:end;}
+.t-col.running .t-label{color:var(–rd);}
+.t-col.done .t-label{color:var(–rg);}
+.t-display{font-size:clamp(34px,11vw,54px);font-weight:bold;color:var(–rd);
+line-height:1;font-variant-numeric:tabular-nums;
+grid-column:1;grid-row:2;user-select:none;transition:var(–tx);}
+.t-col.running .t-display{color:var(–rg);}
+.t-col.done .t-display{color:var(–rg);}
+.t-status{font-size:clamp(8px,2vw,10px);letter-spacing:.15em;text-transform:uppercase;
+color:var(–rf);grid-column:1;grid-row:3;padding-top:1px;}
+.t-col.running .t-status{color:var(–rd);}
+.t-col.done .t-status{color:var(–rg);}
+.t-right{grid-column:2;grid-row:1/4;display:flex;flex-direction:column;
+align-items:center;gap:5px;justify-content:center;}
+.t-adjust{display:flex;flex-direction:column;gap:3px;}
+.adj-btn{background:none;border:2px solid var(–cb);border-radius:4px;
+color:var(–rd);font-family:inherit;font-size:clamp(17px,4.8vw,24px);
+font-weight:bold;width:42px;height:38px;cursor:pointer;
+transition:var(–tx);display:flex;align-items:center;justify-content:center;}
+.adj-btn:active{background:var(–hi);}
+.t-set{display:flex;align-items:center;justify-content:center;gap:2px;}
+.t-set-input{width:30px;background:var(–bg);border:2px solid var(–cb);
+border-radius:4px;color:var(–rd);font-family:‘Courier New’,monospace;
+font-size:clamp(10px,2.8vw,13px);font-weight:bold;text-align:center;
+padding:2px 1px;outline:none;-moz-appearance:textfield;transition:var(–tx);}
+.t-set-input::-webkit-outer-spin-button,
+.t-set-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.t-set-input:focus{border-color:var(–r);}
+.t-sep{color:var(–rf);font-size:clamp(10px,2.8vw,13px);font-weight:bold;}
+.timer-footer{display:flex;gap:8px;flex-shrink:0;margin-top:auto;}
+.reset-btn{flex:1;background:none;border:2px solid var(–cb);border-radius:4px;
+color:var(–rd);font-family:inherit;font-size:clamp(11px,3vw,14px);
+letter-spacing:.2em;text-transform:uppercase;padding:7px 4px;cursor:pointer;transition:var(–tx);}
+.reset-btn:active{background:var(–hi);}
+
+/* – ENLARGE PANEL – */
+.enlarge-panel{flex:1;display:flex;flex-direction:column;padding:12px 12px;gap:0;overflow-y:auto;}
+
+.enl-group{margin-bottom:14px;}
+.enl-group-title{font-size:clamp(9px,2.4vw,11px);letter-spacing:.25em;color:var(–rf);
+text-transform:uppercase;margin-bottom:6px;}
+
+.enl-row{display:grid;grid-template-columns:1fr 12px 1fr;gap:6px;align-items:center;margin-bottom:6px;}
+.enl-x{text-align:center;color:var(–rf);font-size:clamp(12px,3vw,15px);}
+
+.enl-field{display:flex;flex-direction:column;gap:3px;}
+.enl-lbl{font-size:clamp(8px,2.2vw,10px);letter-spacing:.15em;color:var(–rf);text-transform:uppercase;}
+.enl-input{background:var(–pn);border:2px solid var(–cb);border-radius:5px;
+color:var(–rg);font-family:‘Courier New’,monospace;
+font-size:clamp(20px,6vw,30px);font-weight:bold;text-align:center;
+padding:5px 4px;outline:none;caret-color:var(–rg);
+-moz-appearance:textfield;width:100%;transition:var(–tx);}
+.enl-input::-webkit-outer-spin-button,
+.enl-input::-webkit-inner-spin-button{-webkit-appearance:none;}
+.enl-input::placeholder{color:var(–rf);}
+.enl-input:focus{border-color:var(–r);}
+
+/* time input - slightly smaller since it shows seconds */
+.enl-input.time-in{font-size:clamp(22px,7vw,34px);}
+
+.enl-divider{height:2px;background:var(–dv);margin:4px 0 14px;}
+
+/* Result block */
+.enl-result{background:var(–pn);border:2px solid var(–cb);border-radius:6px;
+padding:14px 12px;text-align:center;transition:var(–tx);}
+.enl-result.has-result{border-color:var(–r);}
+.enl-result-lbl{font-size:clamp(9px,2.4vw,11px);letter-spacing:.2em;color:var(–rf);
+text-transform:uppercase;margin-bottom:6px;}
+.enl-result-val{font-size:clamp(38px,12vw,58px);font-weight:bold;color:var(–rd);
+line-height:1;font-variant-numeric:tabular-nums;transition:var(–tx);}
+.enl-result.has-result .enl-result-val{color:var(–rg);}
+.enl-result-sub{font-size:clamp(10px,2.6vw,12px);color:var(–rf);margin-top:4px;letter-spacing:.1em;}
+.enl-result.has-result .enl-result-sub{color:var(–rd);}
+
+.enl-formula{font-size:clamp(8px,2vw,10px);color:var(–rf);margin-top:12px;
+letter-spacing:.06em;line-height:1.7;text-align:center;}
+</style>
+
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">Darkroom</span>
+  <button class="mode-btn" onclick="toggleMode()">
+    <span id="modeIcon">&#9728;</span><span id="modeLbl">Light</span>
+  </button>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('print')">Print</button>
+  <button class="tab"        onclick="switchTab('enlarge')">Enlarge</button>
+  <button class="tab"        onclick="switchTab('dev')">Dev</button>
+</div>
+
+<!-- == PRINT PANEL == -->
+
+<div class="panel active" id="panel-print">
+
+  <!-- Enlarger head selector -->
+
+  <div class="head-bar">
+    <button class="head-btn active" onclick="selectHead(0)">Meopta</button>
+    <button class="head-btn"        onclick="selectHead(1)">Durst 170M</button>
+    <button class="head-btn"        onclick="selectHead(2)">Durst 130M</button>
+    <button class="head-btn"        onclick="selectHead(3)">Kodak</button>
+  </div>
+
+  <div class="input-row">
+    <input id="base-input" type="number" inputmode="decimal" placeholder="0.0" min="0" step="0.1">
+    <span class="input-unit">sec</span>
+  </div>
+
+  <div class="divider"></div>
+  <div class="sec-label">Exposure - half-stop steps</div>
+
+  <div class="fstop-wrap">
+    <div class="fstop-row">
+      <div class="fs-card"><span class="fs-lbl">-2</span><span class="fs-val" id="m2">-</span></div>
+      <div class="fs-card"><span class="fs-lbl">-1.5</span><span class="fs-val" id="m15">-</span></div>
+      <div class="fs-card"><span class="fs-lbl">-1</span><span class="fs-val" id="m1">-</span></div>
+      <div class="fs-card"><span class="fs-lbl">-0.5</span><span class="fs-val" id="m05">-</span></div>
+      <div class="fs-card"><span class="fs-lbl">-0.25</span><span class="fs-val" id="m025">-</span></div>
+    </div>
+    <div class="fstop-row">
+      <div class="fs-card"><span class="fs-lbl">+0.25</span><span class="fs-val" id="p025">-</span></div>
+      <div class="fs-card"><span class="fs-lbl">+0.5</span><span class="fs-val" id="p05">-</span></div>
+      <div class="fs-card"><span class="fs-lbl">+1</span><span class="fs-val" id="p1">-</span></div>
+      <div class="fs-card"><span class="fs-lbl">+1.5</span><span class="fs-val" id="p15">-</span></div>
+      <div class="fs-card"><span class="fs-lbl">+2</span><span class="fs-val" id="p2">-</span></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <div class="sec-label" id="contrast-label">Contrast &mdash; Meopta &mdash; Ilford MG RC</div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Grade</th><th>Yellow</th><th>Magenta</th><th>Time</th></tr>
+      </thead>
+      <tbody id="grade-tbody"></tbody>
+    </table>
+    <div class="note" id="contrast-note">
+      Grades 00-2: Yellow only. Grades 2.5-5: Magenta only. Times adjusted for head.
+    </div>
+  </div>
+</div>
+
+<!-- == ENLARGE PANEL == -->
+
+<div class="panel" id="panel-enlarge">
+  <div class="enlarge-panel">
+
+```
+<!-- Original print -->
+<div class="enl-group">
+  <div class="enl-group-title">Original print</div>
+  <div class="enl-row">
+    <div class="enl-field">
+      <div class="enl-lbl">Height (cm)</div>
+      <input class="enl-input" id="oh" type="number" inputmode="decimal" placeholder="18" min="0" step="0.5" oninput="calcEnlarge()">
+    </div>
+    <div class="enl-x">@</div>
+    <div class="enl-field">
+      <div class="enl-lbl">Time (sec)</div>
+      <input class="enl-input" id="ot" type="number" inputmode="decimal" placeholder="12" min="0" step="0.1" oninput="calcEnlarge()">
+    </div>
+  </div>
+</div>
+
+<div class="enl-divider"></div>
+
+<!-- New print -->
+<div class="enl-group">
+  <div class="enl-group-title">New print</div>
+  <div class="enl-field">
+    <div class="enl-lbl">New height (cm)</div>
+    <input class="enl-input" id="nh" type="number" inputmode="decimal" placeholder="30" min="0" step="0.5" oninput="calcEnlarge()">
+  </div>
+</div>
+
+<div class="enl-divider"></div>
+
+<!-- Result -->
+<div class="enl-result" id="enl-result">
+  <div class="enl-result-lbl">New exposure time</div>
+  <div class="enl-result-val" id="enl-val">-</div>
+  <div class="enl-result-sub" id="enl-sub">enter values above</div>
+</div>
+
+<div class="enl-formula">
+  Method A: New Time = Old Time x (New Height / Old Height)^2<br>
+  More accurate than area method when changing print size.
+</div>
+```
+
+  </div>
+</div>
+
+<!-- == DEV PANEL == -->
+
+<div class="panel" id="panel-dev">
+  <div class="timer-panel">
+    <div class="timers-row">
+
+```
+  <div class="t-col" id="col-0" onclick="tapTimer(0)">
+    <div class="t-label">Developer</div>
+    <div class="t-display" id="disp-0">2:00</div>
+    <div class="t-status"  id="stat-0">tap to start</div>
+    <div class="t-right" onclick="event.stopPropagation()">
+      <div class="t-adjust">
+        <button class="adj-btn" onclick="adjustTimer(0,15)">+</button>
+        <button class="adj-btn" onclick="adjustTimer(0,-15)">-</button>
+      </div>
+      <div class="t-set">
+        <input class="t-set-input" id="set-m-0" type="number" min="0" max="59" value="2" inputmode="numeric">
+        <span class="t-sep">:</span>
+        <input class="t-set-input" id="set-s-0" type="number" min="0" max="59" value="0" inputmode="numeric">
+      </div>
+    </div>
+  </div>
+
+  <div class="t-col" id="col-1" onclick="tapTimer(1)">
+    <div class="t-label">Stopper</div>
+    <div class="t-display" id="disp-1">0:30</div>
+    <div class="t-status"  id="stat-1">tap to start</div>
+    <div class="t-right" onclick="event.stopPropagation()">
+      <div class="t-adjust">
+        <button class="adj-btn" onclick="adjustTimer(1,15)">+</button>
+        <button class="adj-btn" onclick="adjustTimer(1,-15)">-</button>
+      </div>
+      <div class="t-set">
+        <input class="t-set-input" id="set-m-1" type="number" min="0" max="59" value="0" inputmode="numeric">
+        <span class="t-sep">:</span>
+        <input class="t-set-input" id="set-s-1" type="number" min="0" max="59" value="30" inputmode="numeric">
+      </div>
+    </div>
+  </div>
+
+  <div class="t-col" id="col-2" onclick="tapTimer(2)">
+    <div class="t-label">Fixer</div>
+    <div class="t-display" id="disp-2">3:00</div>
+    <div class="t-status"  id="stat-2">tap to start</div>
+    <div class="t-right" onclick="event.stopPropagation()">
+      <div class="t-adjust">
+        <button class="adj-btn" onclick="adjustTimer(2,15)">+</button>
+        <button class="adj-btn" onclick="adjustTimer(2,-15)">-</button>
+      </div>
+      <div class="t-set">
+        <input class="t-set-input" id="set-m-2" type="number" min="0" max="59" value="3" inputmode="numeric">
+        <span class="t-sep">:</span>
+        <input class="t-set-input" id="set-s-2" type="number" min="0" max="59" value="0" inputmode="numeric">
+      </div>
+    </div>
+  </div>
+
+</div>
+<div class="timer-footer">
+  <button class="reset-btn" onclick="resetAll()">Reset All</button>
+</div>
+```
+
+  </div>
+</div>
+
+<script>
+/* -- ENLARGER HEAD DATA --
+   From Ilford Multigrade RC official filter chart.
+   factor = exposure multiplier relative to Grade 2 (white light = 1.0).
+   Source: Ilford data sheet / image provided.
+*/
+var HEADS = [
+  {
+    name: 'Meopta',
+    grades: [
+      {label:'00', Y:150, M:0,   factor:2.2},
+      {label:'0',  Y:90,  M:0,   factor:1.8},
+      {label:'1/2',Y:70,  M:0,   factor:1.6},
+      {label:'1',  Y:55,  M:0,   factor:1.4},
+      {label:'1.5',Y:30,  M:0,   factor:1.2},
+      {label:'2',  Y:0,   M:0,   factor:1.0},
+      {label:'2.5',Y:0,   M:20,  factor:1.0},
+      {label:'3',  Y:0,   M:40,  factor:1.1},
+      {label:'3.5',Y:0,   M:65,  factor:1.3},
+      {label:'4',  Y:0,   M:85,  factor:1.5},
+      {label:'4.5',Y:0,   M:200, factor:2.0},
+      {label:'5',  Y:0,   M:200, factor:2.5}
+    ]
+  },
+  {
+    name: 'Durst 170M',
+    grades: [
+      {label:'00', Y:150, M:0,   factor:2.2},
+      {label:'0',  Y:90,  M:0,   factor:1.8},
+      {label:'1/2',Y:70,  M:0,   factor:1.6},
+      {label:'1',  Y:55,  M:0,   factor:1.4},
+      {label:'1.5',Y:30,  M:0,   factor:1.2},
+      {label:'2',  Y:0,   M:0,   factor:1.0},
+      {label:'2.5',Y:0,   M:20,  factor:1.0},
+      {label:'3',  Y:0,   M:45,  factor:1.1},
+      {label:'3.5',Y:0,   M:65,  factor:1.3},
+      {label:'4',  Y:0,   M:100, factor:1.5},
+      {label:'4.5',Y:0,   M:140, factor:2.0},
+      {label:'5',  Y:0,   M:170, factor:2.5}
+    ]
+  },
+  {
+    name: 'Durst 130M',
+    grades: [
+      {label:'00', Y:120, M:0,   factor:2.0},
+      {label:'0',  Y:70,  M:0,   factor:1.7},
+      {label:'1/2',Y:50,  M:0,   factor:1.5},
+      {label:'1',  Y:40,  M:0,   factor:1.35},
+      {label:'1.5',Y:25,  M:0,   factor:1.15},
+      {label:'2',  Y:0,   M:0,   factor:1.0},
+      {label:'2.5',Y:0,   M:10,  factor:1.0},
+      {label:'3',  Y:0,   M:30,  factor:1.1},
+      {label:'3.5',Y:0,   M:50,  factor:1.25},
+      {label:'4',  Y:0,   M:75,  factor:1.5},
+      {label:'4.5',Y:0,   M:120, factor:2.0},
+      {label:'5',  Y:0,   M:130, factor:2.4}
+    ]
+  },
+  {
+    name: 'Kodak',
+    grades: [
+      {label:'00', Y:199, M:0,   factor:2.3},
+      {label:'0',  Y:90,  M:0,   factor:1.8},
+      {label:'1/2',Y:70,  M:0,   factor:1.6},
+      {label:'1',  Y:50,  M:0,   factor:1.4},
+      {label:'1.5',Y:30,  M:0,   factor:1.2},
+      {label:'2',  Y:0,   M:0,   factor:1.0},
+      {label:'2.5',Y:0,   M:5,   factor:1.0},
+      {label:'3',  Y:0,   M:25,  factor:1.1},
+      {label:'3.5',Y:0,   M:50,  factor:1.3},
+      {label:'4',  Y:0,   M:80,  factor:1.5},
+      {label:'4.5',Y:0,   M:140, factor:2.0},
+      {label:'5',  Y:0,   M:199, factor:2.5}
+    ]
+  }
+];
+
+var currentHead = 0;
+var tbody = document.getElementById('grade-tbody');
+
+function buildTable() {
+  tbody.innerHTML = '';
+  var head = HEADS[currentHead];
+  head.grades.forEach(function(g, i) {
+    var tr = document.createElement('tr');
+    var yCell, mCell;
+    if (g.Y > 0) {
+      yCell = '<td class="ly">' + g.Y + 'Y</td>';
+      mCell = '<td style="color:var(--rf)">-</td>';
+    } else if (g.M > 0) {
+      yCell = '<td style="color:var(--rf)">-</td>';
+      mCell = '<td class="lm">' + g.M + 'M</td>';
+    } else {
+      yCell = '<td style="color:var(--rd)">0</td>';
+      mCell = '<td style="color:var(--rd)">0</td>';
+    }
+    tr.innerHTML = '<td class="gc">' + g.label + '</td>' + yCell + mCell +
+                   '<td class="tc" id="gt' + i + '">-</td>';
+    tbody.appendChild(tr);
+  });
+  document.getElementById('contrast-label').textContent =
+    'Contrast  ' + head.name + '  Ilford MG RC';
+  renderPrint();
+}
+
+function selectHead(idx) {
+  currentHead = idx;
+  document.querySelectorAll('.head-btn').forEach(function(b, i) {
+    b.classList.toggle('active', i === idx);
+  });
+  buildTable();
+}
+
+function fmtF(n) { return n >= 100 ? n.toFixed(0) : n.toFixed(1); }
+
+function setCell(id, val, ok) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  if (ok) { el.textContent = fmtF(val); el.classList.add('lit'); }
+  else    { el.textContent = '-'; el.classList.remove('lit'); }
+}
+
+function renderPrint() {
+  var base = parseFloat(document.getElementById('base-input').value);
+  var ok = !isNaN(base) && base > 0;
+  var stops = [
+    ['m2',-2],['m15',-1.5],['m1',-1],['m05',-0.5],['m025',-0.25],
+    ['p025',0.25],['p05',0.5],['p1',1],['p15',1.5],['p2',2]
+  ];
+  stops.forEach(function(pair) {
+    setCell(pair[0], ok ? base * Math.pow(2, pair[1]) : 0, ok);
+  });
+  var grades = HEADS[currentHead].grades;
+  grades.forEach(function(g, i) {
+    var td = document.getElementById('gt' + i);
+    var tr = tbody.rows[i];
+    if (!td || !tr) return;
+    if (ok) {
+      td.textContent = fmtF(base * g.factor) + 's';
+      tr.classList.add('ag');
+    } else {
+      td.textContent = '-';
+      tr.classList.remove('ag');
+    }
+  });
+}
+
+document.getElementById('base-input').addEventListener('input', renderPrint);
+
+/* -- TIMER LOGIC -- */
+var timers = [
+  {total:120, remaining:120, running:false, intervalId:null, startStamp:null},
+  {total:30,  remaining:30,  running:false, intervalId:null, startStamp:null},
+  {total:180, remaining:180, running:false, intervalId:null, startStamp:null}
+];
+
+function getSetTime(i) {
+  var m = parseInt(document.getElementById('set-m-' + i).value) || 0;
+  var s = parseInt(document.getElementById('set-s-' + i).value) || 0;
+  return Math.max(1, m * 60 + s);
+}
+
+function fmtT(sec) {
+  var s = Math.max(0, Math.round(sec));
+  var m = Math.floor(s / 60);
+  var ss = s % 60;
+  return m + ':' + (ss < 10 ? '0' : '') + ss;
+}
+
+/* Return live remaining seconds, calculated from startStamp */
+function liveRemaining(t) {
+  if (!t.running) return t.remaining;
+  var elapsed = (Date.now() - t.startStamp) / 1000;
+  return Math.max(0, t.remaining - elapsed);
+}
+
+function updateDisplay(i) {
+  var t = timers[i];
+  var rem = liveRemaining(t);
+  document.getElementById('disp-' + i).textContent = fmtT(rem);
+  var col = document.getElementById('col-' + i);
+  var st  = document.getElementById('stat-' + i);
+  col.className = 't-col';
+  if (rem <= 0 && !t.running) {
+    col.classList.add('done');
+    st.textContent = 'done  tap to reset';
+  } else if (t.running) {
+    col.classList.add('running');
+    st.textContent = 'running  tap to pause';
+  } else {
+    st.textContent = t.remaining === t.total ? 'tap to start' : 'paused  tap to resume';
+  }
+}
+
+function buzz() {
+  try {
+    var ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.2, 0.4].forEach(function(d) {
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.frequency.value = 880;
+      g.gain.setValueAtTime(0.6, ctx.currentTime + d);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + d + 0.18);
+      o.start(ctx.currentTime + d);
+      o.stop(ctx.currentTime + d + 0.18);
+    });
+    if (navigator.vibrate) navigator.vibrate([150,80,150,80,150]);
+  } catch(e) {}
+}
+
+function stopTimer(i) {
+  var t = timers[i];
+  if (t.running) {
+    /* snapshot remaining before stopping */
+    t.remaining = Math.max(0, liveRemaining(t));
+  }
+  clearInterval(t.intervalId);
+  t.intervalId = null;
+  t.running = false;
+  t.startStamp = null;
+}
+
+function startTimer(i) {
+  var t = timers[i];
+  if (t.remaining <= 0) return;
+  t.running = true;
+  t.startStamp = Date.now();        /* wall-clock anchor */
+  t.intervalId = setInterval(function() {
+    var rem = liveRemaining(timers[i]);
+    updateDisplay(i);
+    if (rem <= 0) {
+      stopTimer(i);
+      timers[i].remaining = 0;
+      updateDisplay(i);
+      buzz();
+    }
+  }, 250);                           /* tick every 250ms for smooth display */
+  updateDisplay(i);
+}
+
+function tapTimer(i) {
+  var t = timers[i];
+  if (t.remaining <= 0 && !t.running) { resetTimer(i); return; }
+  if (t.running) { stopTimer(i); } else { startTimer(i); }
+  updateDisplay(i);
+}
+
+function adjustTimer(i, delta) {
+  var wasRunning = timers[i].running;
+  if (wasRunning) stopTimer(i);           /* snapshot first */
+  timers[i].remaining = Math.max(0, timers[i].remaining + delta);
+  timers[i].total = timers[i].remaining;
+  document.getElementById('set-m-' + i).value = Math.floor(timers[i].total / 60);
+  document.getElementById('set-s-' + i).value = timers[i].total % 60;
+  if (wasRunning && timers[i].remaining > 0) startTimer(i);
+  else updateDisplay(i);
+}
+
+function resetTimer(i) {
+  stopTimer(i);
+  timers[i].total     = getSetTime(i);
+  timers[i].remaining = timers[i].total;
+  updateDisplay(i);
+}
+
+function resetAll() {
+  [0,1,2].forEach(function(i) { resetTimer(i); });
+}
+
+/* Also refresh displays when user returns to Dev tab */
+
+[0,1,2].forEach(function(i) {
+  ['set-m-' + i, 'set-s-' + i].forEach(function(id) {
+    document.getElementById(id).addEventListener('change', function() {
+      if (!timers[i].running) resetTimer(i);
+    });
+  });
+  updateDisplay(i);
+});
+
+/* -- TAB + MODE -- */
+function switchTab(name) {
+  var tabs = ['print','enlarge','dev'];
+  document.querySelectorAll('.tab').forEach(function(t, i) {
+    t.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.panel').forEach(function(p) {
+    p.classList.toggle('active', p.id === 'panel-' + name);
+  });
+  /* refresh displays immediately when returning to dev */
+  if (name === 'dev') {
+    [0,1,2].forEach(function(i) { updateDisplay(i); });
+  }
+}
+
+/* -- ENLARGE CALC -- */
+function calcEnlarge() {
+  var oh = parseFloat(document.getElementById('oh').value);
+  var ot = parseFloat(document.getElementById('ot').value);
+  var nh = parseFloat(document.getElementById('nh').value);
+
+  var result = document.getElementById('enl-result');
+  var val    = document.getElementById('enl-val');
+  var sub    = document.getElementById('enl-sub');
+
+  var allSet = !isNaN(oh) && oh > 0 &&
+               !isNaN(ot) && ot > 0 &&
+               !isNaN(nh) && nh > 0;
+
+  if (!allSet) {
+    result.classList.remove('has-result');
+    val.textContent = '-';
+    sub.textContent = 'enter values above';
+    return;
+  }
+
+  var ratio   = (nh / oh) * (nh / oh);
+  var newTime = ot * ratio;
+
+  result.classList.add('has-result');
+  val.textContent = newTime >= 100 ? newTime.toFixed(0) + 's' : newTime.toFixed(1) + 's';
+  sub.textContent = 'x' + ratio.toFixed(2) + ' factor  (' + oh + 'cm at ' + ot + 's  >  ' + nh + 'cm)';
+}
+
+function toggleMode() {
+  var light = document.body.classList.toggle('light');
+  document.getElementById('modeIcon').textContent = light ? 'R' : 'L';
+  document.getElementById('modeLbl').textContent  = light ? 'Darkroom' : 'Light';
+}
+
+/* init */
+buildTable();
+</script>
+
+</body>
+</html>
