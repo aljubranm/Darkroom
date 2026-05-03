@@ -590,20 +590,21 @@ function buzz() {
 function stopTimer(i) {
   var t = timers[i];
   if (t.running) {
-    /* snapshot remaining before stopping */
     t.remaining = Math.max(0, liveRemaining(t));
   }
   clearInterval(t.intervalId);
   t.intervalId = null;
   t.running = false;
   t.startStamp = null;
+  if (!anyRunning()) releaseWakeLock();
 }
 
 function startTimer(i) {
   var t = timers[i];
   if (t.remaining <= 0) return;
   t.running = true;
-  t.startStamp = Date.now();        /* wall-clock anchor */
+  t.startStamp = Date.now();
+  acquireWakeLock();
   t.intervalId = setInterval(function() {
     var rem = liveRemaining(timers[i]);
     updateDisplay(i);
@@ -613,7 +614,7 @@ function startTimer(i) {
       updateDisplay(i);
       buzz();
     }
-  }, 250);                           /* tick every 250ms for smooth display */
+  }, 250);
   updateDisplay(i);
 }
 
@@ -657,7 +658,41 @@ function resetAll() {
   updateDisplay(i);
 });
 
-/* -- TAB + MODE -- */
+/* -- WAKE LOCK -- */
+var wakeLock = null;
+
+function anyRunning() {
+  return timers[0].running || timers[1].running || timers[2].running;
+}
+
+function acquireWakeLock() {
+  if ('wakeLock' in navigator && !wakeLock) {
+    navigator.wakeLock.request('screen').then(function(lock) {
+      wakeLock = lock;
+      wakeLock.addEventListener('release', function() {
+        wakeLock = null;
+        /* re-acquire if a timer is still running (OS released it on tab switch) */
+        if (anyRunning()) acquireWakeLock();
+      });
+    }).catch(function() {
+      wakeLock = null;
+    });
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release();
+    wakeLock = null;
+  }
+}
+
+/* re-acquire when page becomes visible again (iOS releases on tab switch) */
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && anyRunning()) {
+    acquireWakeLock();
+  }
+});
 function switchTab(name) {
   var tabs = ['print','enlarge','dev'];
   document.querySelectorAll('.tab').forEach(function(t, i) {
